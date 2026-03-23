@@ -23,6 +23,26 @@ CREATE TABLE IF NOT EXISTS ohlcv (
 CREATE INDEX IF NOT EXISTS idx_ohlcv_ticker ON ohlcv (ticker);
 CREATE INDEX IF NOT EXISTS idx_ohlcv_date ON ohlcv (date);
 
+CREATE TABLE IF NOT EXISTS fundamentals (
+    ticker          TEXT PRIMARY KEY,
+    name            TEXT,
+    sector          TEXT,
+    current_price   REAL,
+    market_cap      REAL,
+    pe_ratio        REAL,
+    forward_pe      REAL,
+    dividend_yield  REAL,
+    beta            REAL,
+    avg_volume      INTEGER,
+    week_52_low     REAL,
+    week_52_high    REAL,
+    eps             REAL,
+    revenue_growth  REAL,
+    debt_to_equity  REAL,
+    free_cash_flow  REAL,
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS sync_log (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     ticker    TEXT    NOT NULL,
@@ -93,6 +113,51 @@ def upsert_ohlcv(db_path: str, df: pd.DataFrame) -> dict[str, int]:
         conn.commit()
 
     return results
+
+
+def upsert_fundamentals(db_path: str, df: pd.DataFrame) -> int:
+    """Insert or replace fundamentals data.
+
+    Returns:
+        Number of rows upserted.
+    """
+    if df.empty:
+        return 0
+
+    with get_connection(db_path) as conn:
+        count = 0
+        for _, row in df.iterrows():
+            conn.execute(
+                """INSERT OR REPLACE INTO fundamentals
+                (ticker, name, sector, current_price, market_cap, pe_ratio,
+                 forward_pe, dividend_yield, beta, avg_volume, week_52_low,
+                 week_52_high, eps, revenue_growth, debt_to_equity,
+                 free_cash_flow, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
+                (row.get("ticker"), row.get("name"), row.get("sector"),
+                 row.get("current_price"), row.get("market_cap"),
+                 row.get("pe_ratio"), row.get("forward_pe"),
+                 row.get("dividend_yield"), row.get("beta"),
+                 row.get("avg_volume"), row.get("week_52_low"),
+                 row.get("week_52_high"), row.get("eps"),
+                 row.get("revenue_growth"), row.get("debt_to_equity"),
+                 row.get("free_cash_flow")),
+            )
+            count += 1
+        conn.commit()
+
+    return count
+
+
+def get_fundamentals(db_path: str, ticker: str = None) -> pd.DataFrame:
+    """Read fundamentals. If ticker is None, return all."""
+    with get_connection(db_path) as conn:
+        if ticker:
+            return pd.read_sql_query(
+                "SELECT * FROM fundamentals WHERE ticker = ?",
+                conn, params=(ticker,),
+            )
+        return pd.read_sql_query("SELECT * FROM fundamentals ORDER BY ticker", conn)
 
 
 def get_latest_date(db_path: str, ticker: str) -> str | None:

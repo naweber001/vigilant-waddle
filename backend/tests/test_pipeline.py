@@ -8,7 +8,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from db.store import init_db, upsert_ohlcv, get_ohlcv, get_row_counts, get_latest_date
+from db.store import init_db, upsert_ohlcv, upsert_fundamentals, get_ohlcv, get_fundamentals, get_row_counts, get_latest_date
 from pipeline.validate import validate_ohlcv
 
 
@@ -107,8 +107,67 @@ def test_db_roundtrip():
         os.unlink(db_path)
 
 
+def test_fundamentals_roundtrip():
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+
+    try:
+        init_db(db_path)
+
+        fund_data = pd.DataFrame([
+            {"ticker": "NVDA", "name": "NVIDIA Corp", "sector": "Technology",
+             "current_price": 120.50, "market_cap": 2.9e12, "pe_ratio": 55.3,
+             "forward_pe": 32.1, "dividend_yield": 0.0003, "beta": 1.65,
+             "avg_volume": 45000000, "week_52_low": 75.0, "week_52_high": 153.0,
+             "eps": 2.18, "revenue_growth": 0.94, "debt_to_equity": 29.5,
+             "free_cash_flow": 30.5e9},
+            {"ticker": "JPM", "name": "JPMorgan Chase", "sector": "Financial Services",
+             "current_price": 195.20, "market_cap": 560e9, "pe_ratio": 11.2,
+             "forward_pe": 10.8, "dividend_yield": 0.022, "beta": 1.05,
+             "avg_volume": 12000000, "week_52_low": 170.0, "week_52_high": 210.0,
+             "eps": 17.43, "revenue_growth": 0.12, "debt_to_equity": 180.0,
+             "free_cash_flow": None},
+        ])
+
+        count = upsert_fundamentals(db_path, fund_data)
+        assert count == 2, f"Expected 2 rows upserted, got {count}"
+
+        # Read back
+        all_fund = get_fundamentals(db_path)
+        assert len(all_fund) == 2
+
+        nvda_fund = get_fundamentals(db_path, "NVDA")
+        assert len(nvda_fund) == 1
+        assert nvda_fund.iloc[0]["pe_ratio"] == 55.3
+        assert nvda_fund.iloc[0]["sector"] == "Technology"
+
+        # Test upsert overwrites
+        updated = pd.DataFrame([
+            {"ticker": "NVDA", "name": "NVIDIA Corp", "sector": "Technology",
+             "current_price": 125.00, "market_cap": 3.0e12, "pe_ratio": 57.0,
+             "forward_pe": 33.0, "dividend_yield": 0.0003, "beta": 1.65,
+             "avg_volume": 45000000, "week_52_low": 75.0, "week_52_high": 153.0,
+             "eps": 2.18, "revenue_growth": 0.94, "debt_to_equity": 29.5,
+             "free_cash_flow": 30.5e9},
+        ])
+        upsert_fundamentals(db_path, updated)
+        nvda_fund = get_fundamentals(db_path, "NVDA")
+        assert nvda_fund.iloc[0]["current_price"] == 125.00
+        assert nvda_fund.iloc[0]["pe_ratio"] == 57.0
+
+        # Total count should still be 2 (upsert, not duplicate)
+        all_fund = get_fundamentals(db_path)
+        assert len(all_fund) == 2
+
+        print("PASS: fundamentals roundtrip (insert, read, upsert)")
+
+    finally:
+        os.unlink(db_path)
+
+
 if __name__ == "__main__":
     test_validation_passes_good_data()
     test_validation_drops_bad_rows()
     test_db_roundtrip()
+    test_fundamentals_roundtrip()
     print("\nAll tests passed.")

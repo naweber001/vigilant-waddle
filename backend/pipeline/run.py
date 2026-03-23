@@ -8,8 +8,8 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import TICKERS, DB_PATH, DEFAULT_HISTORY_PERIOD
-from db.store import init_db, upsert_ohlcv, get_row_counts
-from pipeline.adapters.yahoo import fetch_multiple
+from db.store import init_db, upsert_ohlcv, upsert_fundamentals, get_row_counts
+from pipeline.adapters.yahoo import fetch_multiple, fetch_all_fundamentals
 from pipeline.validate import validate_ohlcv
 
 logging.basicConfig(
@@ -58,9 +58,18 @@ def run(tickers: list[str] = None, period: str = None) -> dict[str, int]:
 
     logger.info("Validated %d rows", len(clean_df))
 
-    # Store
-    logger.info("Storing in database...")
+    # Store OHLCV
+    logger.info("Storing OHLCV in database...")
     results = upsert_ohlcv(DB_PATH, clean_df)
+
+    # Fetch and store fundamentals
+    logger.info("Fetching fundamentals from Yahoo Finance...")
+    fund_df = fetch_all_fundamentals(tickers)
+    if not fund_df.empty:
+        fund_count = upsert_fundamentals(DB_PATH, fund_df)
+        logger.info("Stored fundamentals for %d tickers", fund_count)
+    else:
+        logger.warning("No fundamentals data fetched")
 
     # Summary
     logger.info("=== Pipeline Complete ===")
