@@ -1,0 +1,65 @@
+name: Update Market Data & Deploy
+
+on:
+  # Run daily at 5:30 AM and 7:00 AM Pacific Time
+  schedule:
+    - cron: '30 13 * * 1-5'  # 5:30 AM PT (UTC-7) weekdays
+    - cron: '0 15 * * 1-5'   # 7:00 AM PT (UTC-7) weekdays (post-open refresh)
+  # Manual trigger
+  workflow_dispatch:
+  # Also run on pushes to main that change backend code
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/update-data.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  update-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run pipeline and export data
+        working-directory: backend
+        run: python export_json.py
+
+      - name: Verify data.json was created
+        run: |
+          echo "=== data.json ==="
+          cat frontend/data.json | python3 -m json.tool | head -30
+          echo "..."
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'frontend'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
