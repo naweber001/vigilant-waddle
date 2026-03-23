@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LIFE – Markets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0e14;
+    --bg-card: #131720;
+    --bg-card-hover: #1a1f2e;
+    --bg-input: #0f1219;
+    --border: #1e2433;
+    --border-light: #2a3145;
+    --text: #e8eaed;
+    --text-muted: #8b93a7;
+    --text-dim: #5a6378;
+    --green: #00d26a;
+    --green-bg: rgba(0,210,106,0.08);
+    --red: #ff3b5c;
+    --red-bg: rgba(255,59,92,0.08);
+    --yellow: #ffb224;
+    --yellow-bg: rgba(255,178,36,0.08);
+    --blue: #4e8cff;
+    --blue-bg: rgba(78,140,255,0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  .mono { font-family: 'IBM Plex Mono', 'SF Mono', monospace; }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+  .header-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+  }
+  .health-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--green); }
+    50% { opacity: 0.5; box-shadow: 0 0 8px var(--green); }
+  }
+
+  /* Content area */
+  .content { padding: 8px 20px 100px; }
+
+  /* Sub-tab bar */
+  .subtabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .subtab {
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+  .subtab.active {
+    border-color: var(--blue);
+    background: var(--blue-bg);
+    color: var(--blue);
+  }
+  .subtab-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-dim);
+  }
+  .subtab.active .subtab-count {
+    background: rgba(78,140,255,0.13);
+    color: var(--blue);
+  }
+
+  /* Sort bar */
+  .sort-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .sort-label { font-size: 10px; color: var(--text-dim); }
+  .sort-buttons { display: flex; gap: 4px; }
+  .sort-btn {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+  }
+  .sort-btn.active {
+    border-color: var(--blue);
+    background: var(--blue-bg);
+    color: var(--blue);
+  }
+
+  /* Ticker row */
+  .ticker-row {
+    width: 100%;
+    padding: 10px 14px;
+    margin-bottom: 3px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    text-align: left;
+    display: block;
+    transition: background 0.1s;
+    color: var(--text);
+  }
+  .ticker-row:hover { background: var(--bg-card-hover); }
+  .ticker-row-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .signal-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .ticker-info { flex: 1; min-width: 0; }
+  .ticker-top { display: flex; align-items: baseline; gap: 6px; }
+  .ticker-symbol { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700; }
+  .ticker-name { font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ticker-meta { font-size: 10px; color: var(--text-dim); margin-top: 1px; display: flex; align-items: center; gap: 5px; }
+  .ticker-price { text-align: right; flex-shrink: 0; }
+  .ticker-price-val { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; }
+  .ticker-change { font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+  .score-badge {
+    width: 38px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    flex-shrink: 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  /* Detail page */
+  .detail-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    z-index: 100;
+    max-width: 430px;
+    margin: 0 auto;
+    overflow-y: auto;
+  }
+  .detail-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .back-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px;
+  }
+  .detail-content { padding: 16px 20px; }
+  .detail-price {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 16px 0;
+  }
+  .stat-cell {
+    background: var(--bg-card);
+    padding: 10px 12px;
+  }
+  .stat-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; }
+  .stat-value { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; margin-top: 4px; }
+
+  /* 52-week range bar */
+  .range-bar-container { margin: 16px 0; }
+  .range-bar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .range-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--red), var(--yellow), var(--green));
+    position: relative;
+  }
+  .range-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--blue);
+    border: 2px solid var(--bg);
+    position: absolute;
+    top: -3px;
+    transform: translateX(-50%);
+  }
+
+  /* Price history table */
+  .history-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 20px 0 10px;
+  }
+  .history-table { width: 100%; }
+  .history-table th {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    text-align: right;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-table th:first-child { text-align: left; }
+  .history-table td {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 7px 8px;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .history-table td:first-child { text-align: left; color: var(--text-dim); }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-width: 430px;
+    margin: 0 auto;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 8px 0 24px;
+    z-index: 50;
+  }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 0;
+    position: relative;
+  }
+  .nav-icon { font-size: 18px; color: var(--text-dim); }
+  .nav-label { font-size: 9px; color: var(--text-dim); letter-spacing: 0.5px; }
+  .nav-item.active .nav-icon,
+  .nav-item.active .nav-label { color: var(--blue); }
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--blue);
+  }
+
+  /* Loading / empty states */
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+  .empty-state-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.5; }
+  .empty-state-title { font-size: 14px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+  .empty-state-text { font-size: 12px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+const API = window.location.origin + '/api';
+
+// State
+let state = {
+  tickers: [],
+  loading: true,
+  error: null,
+  sortBy: 'alpha',
+  selectedTicker: null,
+  detailData: null,
+  detailLoading: false,
+};
+
+// Helpers
+function formatPrice(p) {
+  if (p == null) return '—';
+  return '$' + p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatChange(pct) {
+  if (pct == null) return '—';
+  const sign = pct >= 0 ? '+' : '';
+  return sign + pct.toFixed(2) + '%';
+}
+
+function changeColor(pct) {
+  if (pct == null) return 'var(--text-dim)';
+  return pct >= 0 ? 'var(--green)' : 'var(--red)';
+}
+
+function formatMarketCap(mc) {
+  if (mc == null) return '—';
+  if (mc >= 1e12) return '$' + (mc / 1e12).toFixed(2) + 'T';
+  if (mc >= 1e9) return '$' + (mc / 1e9).toFixed(1) + 'B';
+  if (mc >= 1e6) return '$' + (mc / 1e6).toFixed(0) + 'M';
+  return '$' + mc.toLocaleString();
+}
+
+function formatVolume(v) {
+  if (v == null) return '—';
+  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(0) + 'K';
+  return v.toString();
+}
+
+function formatNum(n, decimals) {
+  if (n == null) return '—';
+  return n.toFixed(decimals);
+}
+
+function formatPct(n) {
+  if (n == null) return '—';
+  return (n * 100).toFixed(2) + '%';
+}
+
+// Signal color based on simple PE heuristic (placeholder until scoring engine)
+function getSignalColor(ticker) {
+  const t = state.tickers.find(x => x.ticker === ticker.ticker);
+  if (!t || !t.pe_ratio) return 'var(--text-dim)';
+  if (t.pe_ratio < 20) return 'var(--green)';
+  if (t.pe_ratio < 40) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+function getSignalBg(ticker) {
+  const t = state.tickers.find(x => x.ticker === ticker.ticker);
+  if (!t || !t.pe_ratio) return 'transparent';
+  if (t.pe_ratio < 20) return 'var(--green-bg)';
+  if (t.pe_ratio < 40) return 'var(--yellow-bg)';
+  return 'var(--red-bg)';
+}
+
+// Sort
+function sortTickers(tickers, by) {
+  const sorted = [...tickers];
+  if (by === 'alpha') sorted.sort((a, b) => a.ticker.localeCompare(b.ticker));
+  else if (by === 'change') sorted.sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0));
+  else if (by === 'pe') sorted.sort((a, b) => (a.pe_ratio || 999) - (b.pe_ratio || 999));
+  return sorted;
+}
+
+// Fetch data
+async function fetchTickers() {
+  try {
+    const res = await fetch(API + '/tickers');
+    const data = await res.json();
+    state.tickers = data.tickers || [];
+    state.loading = false;
+    state.error = null;
+  } catch (e) {
+    state.loading = false;
+    state.error = 'Could not connect to API. Is the server running?';
+  }
+  render();
+}
+
+async function fetchDetail(ticker) {
+  state.selectedTicker = ticker;
+  state.detailLoading = true;
+  state.detailData = null;
+  render();
+
+  try {
+    const res = await fetch(API + '/tickers/' + ticker);
+    state.detailData = await res.json();
+    state.detailLoading = false;
+  } catch (e) {
+    state.detailData = { error: 'Failed to load detail' };
+    state.detailLoading = false;
+  }
+  render();
+}
+
+function closeDetail() {
+  state.selectedTicker = null;
+  state.detailData = null;
+  render();
+}
+
+function setSort(by) {
+  state.sortBy = by;
+  render();
+}
+
+// Render
+function render() {
+  const app = document.getElementById('app');
+  app.innerHTML = renderHeader() + renderContent() + renderBottomNav();
+
+  if (state.selectedTicker) {
+    app.innerHTML += renderDetail();
+  }
+
+  bindEvents();
+}
+
+function renderHeader() {
+  return `
+    <div class="header">
+      <div>
+        <div class="header-title">LIFE – MARKETS</div>
+        <div class="header-sub">Tickers · ${state.tickers.length} tracked</div>
+      </div>
+      <div class="health-dot"></div>
+    </div>
+  `;
+}
+
+function renderContent() {
+  if (state.loading) {
+    return `<div class="loading"><div class="loading-spinner"></div>Loading tickers...</div>`;
+  }
+  if (state.error) {
+    return `
+      <div class="empty-state">
+        <div class="empty-state-icon">⚠</div>
+        <div class="empty-state-title">Connection Error</div>
+        <div class="empty-state-text">${state.error}<br><br>
+          Run the pipeline first:<br>
+          <code class="mono" style="font-size: 11px; color: var(--blue);">python inspect_data.py</code><br>
+          Then start the server:<br>
+          <code class="mono" style="font-size: 11px; color: var(--blue);">python server.py</code>
+        </div>
+      </div>`;
+  }
+  if (state.tickers.length === 0) {
+    return `
+      <div class="empty-state">
+        <div class="empty-state-icon">📊</div>
+        <div class="empty-state-title">No Ticker Data Yet</div>
+        <div class="empty-state-text">Run the pipeline to fetch data:<br>
+          <code class="mono" style="font-size: 11px; color: var(--blue);">python inspect_data.py</code><br>
+          then restart the server.
+        </div>
+      </div>`;
+  }
+  return renderTickersList();
+}
+
+function renderTickersList() {
+  const sorted = sortTickers(state.tickers, state.sortBy);
+
+  let rows = sorted.map(t => `
+    <button class="ticker-row" data-ticker="${t.ticker}">
+      <div class="ticker-row-inner">
+        <div class="signal-dot" style="background: ${getSignalColor(t)}; box-shadow: 0 0 8px ${getSignalColor(t)}30;"></div>
+        <div class="ticker-info">
+          <div class="ticker-top">
+            <span class="ticker-symbol">${t.ticker}</span>
+            <span class="ticker-name">${t.name}</span>
+          </div>
+          <div class="ticker-meta">
+            ${t.sector}
+            ${t.pe_ratio ? ' · P/E ' + t.pe_ratio.toFixed(1) : ''}
+          </div>
+        </div>
+        <div class="ticker-price">
+          <div class="ticker-price-val">${formatPrice(t.price)}</div>
+          <div class="ticker-change" style="color: ${changeColor(t.change_pct)}">${formatChange(t.change_pct)}</div>
+        </div>
+        <div class="score-badge" style="background: ${getSignalBg(t)}; color: ${getSignalColor(t)}; ${!t.pe_ratio ? 'border: 1px solid var(--border);' : ''}">
+          ${t.pe_ratio ? Math.round(t.pe_ratio) : 'ETF'}
+        </div>
+      </div>
+    </button>
+  `).join('');
+
+  return `
+    <div class="content">
+      <div class="subtabs">
+        <div class="subtab active">
+          Watchlist
+          <span class="subtab-count">${state.tickers.length}</span>
+        </div>
+        <div class="subtab" style="opacity: 0.5; cursor: default;">
+          Research
+          <span class="subtab-count">—</span>
+        </div>
+      </div>
+
+      <div class="sort-bar">
+        <span class="sort-label">Full scoring · Live data</span>
+        <div class="sort-buttons">
+          <button class="sort-btn ${state.sortBy === 'pe' ? 'active' : ''}" data-sort="pe">P/E</button>
+          <button class="sort-btn ${state.sortBy === 'change' ? 'active' : ''}" data-sort="change">Δ%</button>
+          <button class="sort-btn ${state.sortBy === 'alpha' ? 'active' : ''}" data-sort="alpha">A-Z</button>
+        </div>
+      </div>
+
+      ${rows}
+    </div>
+  `;
+}
+
+function renderDetail() {
+  if (state.detailLoading) {
+    return `<div class="detail-overlay"><div class="loading" style="margin-top: 100px;"><div class="loading-spinner"></div>Loading...</div></div>`;
+  }
+
+  const d = state.detailData;
+  if (!d || d.error) {
+    return `<div class="detail-overlay">
+      <div class="detail-header">
+        <button class="back-btn" id="back-btn">←</button>
+        <span>Error loading data</span>
+      </div>
+    </div>`;
+  }
+
+  // 52-week range position
+  let rangePct = 50;
+  if (d.week_52_low != null && d.week_52_high != null && d.price != null) {
+    const range = d.week_52_high - d.week_52_low;
+    rangePct = range > 0 ? ((d.price - d.week_52_low) / range) * 100 : 50;
+  }
+
+  // History table (last 10 days)
+  const historyRows = (d.history || []).slice(-10).reverse().map(h => `
+    <tr>
+      <td>${h.date}</td>
+      <td>${h.open.toFixed(2)}</td>
+      <td>${h.high.toFixed(2)}</td>
+      <td>${h.low.toFixed(2)}</td>
+      <td>${h.close.toFixed(2)}</td>
+      <td>${(h.volume / 1e6).toFixed(1)}M</td>
+    </tr>
+  `).join('');
+
+  return `
+    <div class="detail-overlay">
+      <div class="detail-header">
+        <button class="back-btn" id="back-btn">←</button>
+        <div class="signal-dot" style="background: ${getSignalColor(d)};"></div>
+        <span class="ticker-symbol" style="font-size: 16px;">${d.ticker}</span>
+        <span style="font-size: 13px; color: var(--text-muted);">${d.name}</span>
+      </div>
+
+      <div class="detail-content">
+        <div class="detail-price">${formatPrice(d.price)}</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: ${changeColor(d.change_pct)}; margin-bottom: 4px;">
+          ${formatChange(d.change_pct)}
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-cell">
+            <div class="stat-label">Mkt Cap</div>
+            <div class="stat-value">${formatMarketCap(d.market_cap)}</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">P/E</div>
+            <div class="stat-value">${formatNum(d.pe_ratio, 1) + (d.pe_ratio ? 'x' : '')}</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Fwd P/E</div>
+            <div class="stat-value">${formatNum(d.forward_pe, 1) + (d.forward_pe ? 'x' : '')}</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Yield</div>
+            <div class="stat-value">${d.dividend_yield != null ? formatPct(d.dividend_yield) : '—'}</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Beta</div>
+            <div class="stat-value">${formatNum(d.beta, 2)}</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Avg Vol</div>
+            <div class="stat-value">${formatVolume(d.avg_volume)}</div>
+          </div>
+        </div>
+
+        <!-- 52-Week Range -->
+        <div class="range-bar-container">
+          <div class="range-bar-labels">
+            <span class="mono" style="font-size: 11px;">${formatPrice(d.week_52_low)}</span>
+            <span style="font-size: 10px; color: var(--text-dim);">52-Week Range</span>
+            <span class="mono" style="font-size: 11px;">${formatPrice(d.week_52_high)}</span>
+          </div>
+          <div class="range-bar">
+            <div class="range-dot" style="left: ${rangePct}%;"></div>
+          </div>
+        </div>
+
+        <!-- Additional fundamentals -->
+        <div class="stats-grid" style="margin-top: 16px;">
+          <div class="stat-cell">
+            <div class="stat-label">EPS</div>
+            <div class="stat-value">${formatNum(d.eps, 2)}</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Rev Growth</div>
+            <div class="stat-value">${d.revenue_growth != null ? (d.revenue_growth * 100).toFixed(1) + '%' : '—'}</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">D/E Ratio</div>
+            <div class="stat-value">${formatNum(d.debt_to_equity, 1)}</div>
+          </div>
+        </div>
+
+        <!-- Price History Table -->
+        ${historyRows ? `
+          <div class="history-header">Recent Price History</div>
+          <table class="history-table">
+            <thead><tr>
+              <th>Date</th><th>Open</th><th>High</th><th>Low</th><th>Close</th><th>Vol</th>
+            </tr></thead>
+            <tbody>${historyRows}</tbody>
+          </table>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function renderBottomNav() {
+  const tabs = [
+    { id: 'home', label: 'Home', icon: '⌂' },
+    { id: 'portfolio', label: 'Portfolio', icon: '$' },
+    { id: 'tickers', label: 'Tickers', icon: '≡' },
+    { id: 'analyst', label: 'Analyst', icon: 'C' },
+    { id: 'settings', label: 'Settings', icon: '⚙' },
+  ];
+  return `
+    <div class="bottom-nav">
+      ${tabs.map(t => `
+        <div class="nav-item ${t.id === 'tickers' ? 'active' : ''}" style="${t.id !== 'tickers' ? 'opacity: 0.4;' : ''}">
+          <span class="nav-icon">${t.icon}</span>
+          <span class="nav-label">${t.label}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// Event binding
+function bindEvents() {
+  document.querySelectorAll('.ticker-row').forEach(btn => {
+    btn.addEventListener('click', () => fetchDetail(btn.dataset.ticker));
+  });
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => setSort(btn.dataset.sort));
+  });
+  const backBtn = document.getElementById('back-btn');
+  if (backBtn) backBtn.addEventListener('click', closeDetail);
+}
+
+// Init
+fetchTickers();
+</script>
+</body>
+</html>
